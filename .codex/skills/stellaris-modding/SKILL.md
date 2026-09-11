@@ -5,13 +5,13 @@ description: Create, maintain, register, or troubleshoot project-backed Stellari
 
 # Stellaris Modding
 
-Use this skill for Stellaris mod work in /home/cjstorrs/games/stellaris. Read
+Use this skill for Stellaris mod work in /home/cjstorrs/projects/games/stellaris. Read
 the workspace AGENTS.md before changing a mod, descriptor, launcher state, or
 sync script.
 
 ## Workspace And Live Paths
 
-- Project workspace: /home/cjstorrs/games/stellaris
+- Project workspace: /home/cjstorrs/projects/games/stellaris
 - Local descriptor directory: /home/cjstorrs/.local/share/Paradox Interactive/Stellaris/mod
 - Active mod list: /home/cjstorrs/.local/share/Paradox Interactive/Stellaris/dlc_load.json
 - Launcher state: /home/cjstorrs/.local/share/Paradox Interactive/Stellaris/launcher-v2.sqlite

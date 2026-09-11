@@ -119,8 +119,23 @@ Before finishing:
   launcher playset enables the same mod in the same relative order.
 - Check that the launcher record's gameRegistryId matches the descriptor entry
   and that no unregistered duplicate remains for the same project path.
-- Run the targeted sync script after validation, then commit and push the
-  individual mod repository.
+- After running the targeted sync script, repeat the registration checks
+  against the written state. Require exactly one local record for the project
+  with the expected gameRegistryId, and ensure the enabled descriptor entries
+  in dlc_load.json match the active playset's enabled records in load order.
+  A tweak must immediately follow its dependency in both places.
+- When changing registration or repairing launcher visibility, verify after
+  reopening the launcher that the mod appears in the intended playset and
+  retains its enabled state and load position. Respect desktop permissions;
+  if reopening or visual inspection is unavailable, report this check as
+  pending rather than claiming database checks prove launcher visibility.
+- For sync-script changes, test fresh registration, repair of legacy records
+  without gameRegistryId, and repair when the launcher has already created a
+  duplicate. Use temporary state copies; verify a repeated sync preserves IDs
+  and ordering, and preserves unrelated mods and playset memberships.
+- Commit and push changes to the repository that owns them: mod files in the
+  individual mod repository, skill and sync-script changes in the workspace
+  repository.
 
 Use a test game or a non-interactive parser when practical. If in-game
 behavior cannot be proven outside Stellaris, state the exact in-game check

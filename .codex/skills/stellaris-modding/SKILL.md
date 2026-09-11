@@ -25,6 +25,8 @@ folders to it.
 Before editing, inspect the project descriptor, the target Workshop descriptor
 when applicable, the current local descriptor, and whether Stellaris is
 running. Do not edit a Workshop copy in place.
+Close both Stellaris and the Paradox Launcher before synchronizing state;
+ask the user to close an open launcher rather than terminating their session.
 
 ## New Mods And CJS Tweak Mods
 
@@ -80,6 +82,12 @@ dlc_load.json, and registers it in the active launcher playset. It places a
 tweak immediately after its declared dependency. Do not hand-edit all three
 state locations when the sync script can do so consistently.
 
+Launcher records must include gameRegistryId matching the relative descriptor
+entry, such as mod/reworkedAdvancedAscensionCjsTweaks.mod. A dirPath alone is
+insufficient: the launcher can discover a second record and omit the original
+from its generated active mod list. Reuse the launcher-discovered record and
+transfer legacy playset memberships when repairing an unregistered duplicate.
+
 Use the no-argument form of sync-stellaris-project-mods.sh only to reconcile
 already project-backed local descriptors; it does not register every project
 folder automatically.
@@ -109,6 +117,8 @@ Before finishing:
   Clausewitz braces and valid JSON for dlc_load.json.
 - Verify a local descriptor points to the project folder and the active
   launcher playset enables the same mod in the same relative order.
+- Check that the launcher record's gameRegistryId matches the descriptor entry
+  and that no unregistered duplicate remains for the same project path.
 - Run the targeted sync script after validation, then commit and push the
   individual mod repository.
 

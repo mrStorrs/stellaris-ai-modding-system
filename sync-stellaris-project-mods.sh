@@ -55,6 +55,11 @@ if pgrep -x stellaris >/dev/null; then
   exit 1
 fi
 
+if pgrep -f '[/]Paradox Launcher|[/]dowser([[:space:]]|$)' >/dev/null; then
+  echo "error: close the Paradox Launcher before synchronizing its mod state" >&2
+  exit 1
+fi
+
 python3 - "$SOURCE_ROOT" "$DEST_ROOT" "$STATE_ROOT" "$MOD_NAME" "$DRY_RUN" <<'PY'
 import json
 import re
@@ -319,15 +324,24 @@ try:
     for entry in entries:
         project_path = str(entry["project_path"])
         metadata = entry["metadata"]
+        registry_id = entry["descriptor_entry"]
         existing = cur.execute(
-            "SELECT id FROM mods WHERE dirPath = ?", (project_path,)
+            "SELECT id FROM mods WHERE gameRegistryId = ? AND source = 'local'",
+            (registry_id,),
         ).fetchone()
+        legacy = cur.execute(
+            "SELECT id FROM mods WHERE dirPath = ? AND source = 'local' AND (gameRegistryId IS NULL OR gameRegistryId = '')",
+            (project_path,),
+        ).fetchall()
+        if existing is None and legacy:
+            existing = legacy.pop(0)
         if existing is None:
             mod_id = str(uuid.uuid4())
             cur.execute(
-                "INSERT INTO mods (id, displayName, version, tags, requiredVersion, dirPath, status, source, timeUpdated, isNew, metadataStatus, isMetadataApplied, keepLatest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO mods (id, gameRegistryId, displayName, version, tags, requiredVersion, dirPath, status, source, timeUpdated, isNew, metadataStatus, isMetadataApplied, keepLatest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     mod_id,
+                    registry_id,
                     metadata["name"],
                     metadata["version"],
                     json.dumps(["Balance"]),
@@ -345,8 +359,10 @@ try:
         else:
             mod_id = existing[0]
             cur.execute(
-                "UPDATE mods SET displayName = ?, version = ?, requiredVersion = ?, status = ?, source = ?, timeUpdated = ? WHERE id = ?",
+                "UPDATE mods SET gameRegistryId = ?, dirPath = ?, displayName = ?, version = ?, requiredVersion = ?, status = ?, source = ?, timeUpdated = ? WHERE id = ?",
                 (
+                    registry_id,
+                    project_path,
                     metadata["name"],
                     metadata["version"],
                     metadata["required_version"],
@@ -356,6 +372,26 @@ try:
                     mod_id,
                 ),
             )
+
+        # Preserve playset membership when replacing an old, unregistered row
+        # with the record discovered by the launcher from the .mod descriptor.
+        for (legacy_id,) in legacy:
+            relations = cur.execute(
+                "SELECT playsetId, enabled, position FROM playsets_mods WHERE modId = ?",
+                (legacy_id,),
+            ).fetchall()
+            for related_playset, enabled, position in relations:
+                present = cur.execute(
+                    "SELECT 1 FROM playsets_mods WHERE playsetId = ? AND modId = ?",
+                    (related_playset, mod_id),
+                ).fetchone()
+                if present is None:
+                    cur.execute(
+                        "INSERT INTO playsets_mods (playsetId, modId, enabled, position) VALUES (?, ?, ?, ?)",
+                        (related_playset, mod_id, enabled, position),
+                    )
+            cur.execute("DELETE FROM playsets_mods WHERE modId = ?", (legacy_id,))
+            cur.execute("DELETE FROM mods WHERE id = ?", (legacy_id,))
 
         dependency_ids = []
         for dependency in metadata["dependencies"]:

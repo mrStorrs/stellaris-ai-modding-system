@@ -357,50 +357,54 @@ try:
                 ),
             )
 
-        dependency_positions = []
+        dependency_ids = []
         for dependency in metadata["dependencies"]:
             row = cur.execute(
-                "SELECT pm.position FROM playsets_mods pm JOIN mods m ON m.id = pm.modId WHERE pm.playsetId = ? AND pm.enabled = 1 AND m.displayName = ? ORDER BY pm.position DESC LIMIT 1",
+                "SELECT pm.modId FROM playsets_mods pm JOIN mods m ON m.id = pm.modId WHERE pm.playsetId = ? AND pm.enabled = 1 AND m.displayName = ? ORDER BY pm.position DESC LIMIT 1",
                 (playset_id, dependency),
             ).fetchone()
             if row is None:
                 fail(
                     f"{entry['project_path'].name} cannot follow inactive dependency: {dependency}"
                 )
-            dependency_positions.append(row[0])
+            dependency_ids.append(row[0])
+
+        ordered_ids = [
+            row[0]
+            for row in cur.execute(
+                "SELECT modId FROM playsets_mods WHERE playsetId = ? ORDER BY position, rowid",
+                (playset_id,),
+            )
+        ]
+        if mod_id in ordered_ids:
+            ordered_ids.remove(mod_id)
+
+        target_position = (
+            max(ordered_ids.index(dependency_id) for dependency_id in dependency_ids)
+            + 1
+            if dependency_ids
+            else len(ordered_ids)
+        )
+        ordered_ids.insert(target_position, mod_id)
 
         relation = cur.execute(
             "SELECT rowid FROM playsets_mods WHERE playsetId = ? AND modId = ?",
             (playset_id, mod_id),
         ).fetchone()
-        target_position = (
-            max(dependency_positions) + 1
-            if dependency_positions
-            else cur.execute(
-                "SELECT COALESCE(MAX(position), -1) + 1 FROM playsets_mods WHERE playsetId = ?",
-                (playset_id,),
-            ).fetchone()[0]
-        )
-
-        if relation is not None:
-            cur.execute(
-                "UPDATE playsets_mods SET position = -1 WHERE playsetId = ? AND modId = ?",
-                (playset_id, mod_id),
-            )
-        cur.execute(
-            "UPDATE playsets_mods SET position = position + 1 WHERE playsetId = ? AND modId <> ? AND position >= ?",
-            (playset_id, mod_id, target_position),
-        )
         if relation is None:
             cur.execute(
                 "INSERT INTO playsets_mods (playsetId, modId, enabled, position) VALUES (?, ?, 1, ?)",
                 (playset_id, mod_id, target_position),
             )
-        else:
+        for position, ordered_mod_id in enumerate(ordered_ids):
             cur.execute(
-                "UPDATE playsets_mods SET enabled = 1, position = ? WHERE playsetId = ? AND modId = ?",
-                (target_position, playset_id, mod_id),
+                "UPDATE playsets_mods SET position = ? WHERE playsetId = ? AND modId = ?",
+                (position, playset_id, ordered_mod_id),
             )
+        cur.execute(
+            "UPDATE playsets_mods SET enabled = 1 WHERE playsetId = ? AND modId = ?",
+            (playset_id, mod_id),
+        )
 
     cur.execute(
         "UPDATE playsets SET updatedOn = ? WHERE id = ?",

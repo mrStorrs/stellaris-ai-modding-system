@@ -1,0 +1,13 @@
+# This workspace contains independent Stellaris mod repositories. Keep their
+# histories separate from the workspace tools and instructions.
+/*/
+
+# Track the local Codex workflow and skills.
+!/.codex/
+/.codex/*
+!/.codex/skills/
+!/.codex/skills/**
+
+# Ignore generated Python bytecode inside tracked workflow files.
+**/__pycache__/
+*.py[cod]

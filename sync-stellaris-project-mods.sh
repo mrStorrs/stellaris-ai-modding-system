@@ -395,9 +395,11 @@ try:
 
         dependency_ids = []
         for dependency in metadata["dependencies"]:
+            # Workshop display titles can differ from the descriptor's name.
+            # Resolve the same descriptor identity used by dlc_load.json.
             row = cur.execute(
-                "SELECT pm.modId FROM playsets_mods pm JOIN mods m ON m.id = pm.modId WHERE pm.playsetId = ? AND pm.enabled = 1 AND m.displayName = ? ORDER BY pm.position DESC LIMIT 1",
-                (playset_id, dependency),
+                "SELECT pm.modId FROM playsets_mods pm JOIN mods m ON m.id = pm.modId WHERE pm.playsetId = ? AND pm.enabled = 1 AND m.gameRegistryId = ? ORDER BY pm.position DESC LIMIT 1",
+                (playset_id, descriptor_by_name[dependency]),
             ).fetchone()
             if row is None:
                 fail(
